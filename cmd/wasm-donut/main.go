@@ -100,6 +100,12 @@ func main() {
 				arch = opts.ArchAlt
 			}
 
+			compress := opts.Compress
+			if compress > wasmdonut.DonutCompressAplib {
+				fmt.Fprintf(os.Stderr, "warning: compression engine %d not supported in wasm build; using aPLib (2)\n", compress)
+				compress = wasmdonut.DonutCompressAplib
+			}
+
 			genOpts := wasmdonut.GenerateOptions{
 				Ext:      opts.Ext,
 				Args:     args,
@@ -114,7 +120,7 @@ func main() {
 				Bypass:   opts.Bypass,
 				Headers:  opts.Headers,
 				Entropy:  opts.Entropy,
-				Compress: opts.Compress,
+				Compress: compress,
 				ExitOpt:  opts.ExitOpt,
 				Thread:   opts.Thread,
 				Unicode:  opts.Unicode,
