@@ -609,7 +609,10 @@ cleanup:
  *   OUTPUT : 1 if ok, else 0
  */
 static int gen_random(void *buf, uint64_t len) {
-#if defined(WINDOWS)
+#ifdef DONUT_WASM
+    extern int donut_wasm_random(void *buf, uint64_t len);
+    return donut_wasm_random(buf, len);
+#elif defined(WINDOWS)
     HCRYPTPROV prov;
     int        ok;
     
@@ -2336,4 +2339,3 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 #endif
-

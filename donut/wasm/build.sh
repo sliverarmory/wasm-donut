@@ -11,6 +11,7 @@ mkdir -p "${EM_CACHE_DIR}"
 
 EM_CACHE="${EM_CACHE_DIR}" "${EMCC_BIN}" \
   -O2 \
+  -DDONUT_WASM \
   -I "${ROOT_DIR}/donut/include" \
   "${ROOT_DIR}/donut/wasm/donut_wasm.c" \
   "${ROOT_DIR}/donut/hash.c" \
