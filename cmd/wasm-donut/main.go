@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/sliverarmory/wasm-donut"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,7 @@ func main() {
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			genOpts := GenerateOptions{
+			genOpts := wasmdonut.GenerateOptions{
 				Ext:      opts.Ext,
 				Args:     opts.Args,
 				Class:    opts.Class,
@@ -42,7 +43,7 @@ func main() {
 				Compress: opts.Compress,
 				ExitOpt:  opts.ExitOpt,
 			}
-			return GenerateToFile(ctx, opts.InPath, opts.OutPath, genOpts)
+			return wasmdonut.GenerateToFile(ctx, opts.InPath, opts.OutPath, genOpts)
 		},
 	}
 
@@ -52,10 +53,10 @@ func main() {
 	rootCmd.Flags().StringVar(&opts.Args, "args", "", "optional arguments for the module")
 	rootCmd.Flags().StringVar(&opts.Class, "class", "", "optional .NET class name")
 	rootCmd.Flags().StringVar(&opts.Method, "method", "", "optional method or DLL function")
-	rootCmd.Flags().IntVar(&opts.Arch, "arch", DonutArchX84, "target arch: 1=x86, 2=x64, 3=x86+x64")
-	rootCmd.Flags().IntVar(&opts.Entropy, "entropy", DonutEntropyNone, "entropy: 1=none, 2=random names, 3=random+encrypt")
-	rootCmd.Flags().IntVar(&opts.Compress, "compress", DonutCompressNone, "compression: 1=none, 2=aplib")
-	rootCmd.Flags().IntVar(&opts.ExitOpt, "exit", DonutExitThread, "exit: 1=thread, 2=process, 3=block")
+	rootCmd.Flags().IntVar(&opts.Arch, "arch", wasmdonut.DonutArchX84, "target arch: 1=x86, 2=x64, 3=x86+x64")
+	rootCmd.Flags().IntVar(&opts.Entropy, "entropy", wasmdonut.DonutEntropyNone, "entropy: 1=none, 2=random names, 3=random+encrypt")
+	rootCmd.Flags().IntVar(&opts.Compress, "compress", wasmdonut.DonutCompressNone, "compression: 1=none, 2=aplib")
+	rootCmd.Flags().IntVar(&opts.ExitOpt, "exit", wasmdonut.DonutExitThread, "exit: 1=thread, 2=process, 3=block")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
