@@ -90,7 +90,7 @@ jobs:
             -trimpath \
             -ldflags "-s -w" \
             -o "${output}" \
-            .
+            ./cmd/wasm-donut
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -140,7 +140,7 @@ jobs:
             -trimpath \
             -ldflags "-s -w" \
             -o "${output}" \
-            .
+            ./cmd/wasm-donut
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -185,7 +185,7 @@ jobs:
             -trimpath \
             -ldflags "-s -w" \
             -o "${output}" \
-            .
+            ./cmd/wasm-donut
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -230,7 +230,7 @@ jobs:
             -trimpath \
             -ldflags "-s -w" \
             -o "${output}" \
-            .
+            ./cmd/wasm-donut
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -280,7 +280,7 @@ jobs:
             -trimpath \
             -ldflags "-s -w" \
             -o "${output}" \
-            .
+            ./cmd/wasm-donut
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -333,7 +333,7 @@ jobs:
             -trimpath \
             -ldflags "-s -w" \
             -o "${output}" \
-            .
+            ./cmd/wasm-donut
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
