@@ -373,9 +373,9 @@ erase_memory:
     return 0;
 }
 
-int ansi2unicode(PDONUT_INSTANCE inst, CHAR input[], WCHAR output[DONUT_MAX_NAME]) {
+int ansi2unicode(PDONUT_INSTANCE inst, CHAR input[], WCHAR output[], int output_len) {
     return inst->api.MultiByteToWideChar(CP_ACP, 0, input, 
-      -1, output, DONUT_MAX_NAME);
+      -1, output, output_len);
 }
 
 #include "peb.c"             // resolve functions in export table

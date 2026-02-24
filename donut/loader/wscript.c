@@ -74,7 +74,7 @@ static HRESULT Host_New(PDONUT_INSTANCE inst, IHost *host) {
     host->inst                       = inst;
     
     DPRINT("LoadTypeLib(\"%s\")", inst->wscript_exe);
-    ansi2unicode(inst, inst->wscript_exe, buf);
+    ansi2unicode(inst, inst->wscript_exe, buf, DONUT_MAX_NAME);
     hr = inst->api.LoadTypeLib(buf, &host->lpTypeLib);
     
     if(hr == S_OK) {

@@ -84,7 +84,7 @@ VOID RunPE(PDONUT_INSTANCE inst, PDONUT_MODULE mod) {
     LPVOID                      base, host;
     DWORD                       i, cnt;
     HANDLE                      hThread;
-    WCHAR                       buf[DONUT_MAX_NAME+1];
+    WCHAR                       buf[DONUT_MAX_ARGS+1];
     DWORD                       size_of_img;
     PVOID                       baseAddress;
     SIZE_T                      numBytes;
@@ -544,7 +544,7 @@ VOID RunPE(PDONUT_INSTANCE inst, PDONUT_MODULE mod) {
               // pass parameters/command line to function?
               if(mod->args[0] != 0) {
                 if(mod->unicode) {
-                  ansi2unicode(inst, mod->args, buf);
+                  ansi2unicode(inst, mod->args, buf, DONUT_MAX_ARGS);
                 }
                 DllParam((mod->unicode) ? (PVOID)buf : (PVOID)mod->args);
               } else {
@@ -563,7 +563,7 @@ VOID RunPE(PDONUT_INSTANCE inst, PDONUT_MODULE mod) {
 
       // set the command line
       if(mod->args[0] != 0) {
-        ansi2unicode(inst, mod->args, buf);
+        ansi2unicode(inst, mod->args, buf, DONUT_MAX_ARGS);
         DPRINT("Setting command line: %ws", buf);
         SetCommandLineW(inst, buf);
       }

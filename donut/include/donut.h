@@ -166,7 +166,8 @@ typedef struct _GUID {
 #define DONUT_HEADERS_OVERWRITE          1  // Overwrite PE headers
 #define DONUT_HEADERS_KEEP               2  // Preserve PE headers
 
-#define DONUT_MAX_NAME                4096  // maximum length of string for domain, class, method and parameter names
+#define DONUT_MAX_NAME                 256  // maximum length of string for domain, class, method names and most internal strings
+#define DONUT_MAX_ARGS                4096  // maximum length of command line arguments for managed and unmanaged payloads
 #define DONUT_MAX_DLL                    8  // maximum number of DLL supported by instance
 #define DONUT_MAX_MODNAME                8
 #define DONUT_SIG_LEN                    8  // 64-bit string to verify decryption ok
@@ -234,7 +235,7 @@ typedef struct _DONUT_MODULE {
     char     cls[DONUT_MAX_NAME];             // name of class and optional namespace for .NET EXE/DLL
     char     method[DONUT_MAX_NAME];          // name of method to invoke for .NET DLL or api for unmanaged DLL
     
-    char     args[DONUT_MAX_NAME];            // string arguments for both managed and unmanaged DLL/EXE
+    char     args[DONUT_MAX_ARGS];            // string arguments for both managed and unmanaged DLL/EXE
     int      unicode;                         // convert param to unicode for unmanaged DLL function
     
     char     sig[DONUT_SIG_LEN];              // string to verify decryption
@@ -439,7 +440,7 @@ typedef struct _DONUT_CONFIG {
     char            method[DONUT_MAX_NAME];   // name of method or DLL function to invoke for .NET DLL and unmanaged DLL
     
     // command line for DLL/EXE
-    char            args[DONUT_MAX_NAME];    // command line to use for unmanaged DLL/EXE and .NET DLL/EXE
+    char            args[DONUT_MAX_ARGS];    // command line to use for unmanaged DLL/EXE and .NET DLL/EXE
     int             unicode;                  // param is passed to DLL function without converting to unicode
 
     // module overloading stuff

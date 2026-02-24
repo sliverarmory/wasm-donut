@@ -37,7 +37,7 @@ BOOL LoadAssembly(PDONUT_INSTANCE inst, PDONUT_MODULE mod, PDONUT_ASSEMBLY pa) {
     DWORD           i;
     BOOL            loaded=FALSE, loadable;
     PBYTE           p;
-    WCHAR           buf[DONUT_MAX_NAME];
+    WCHAR           buf[DONUT_MAX_ARGS+1];
     
     if(inst->api.CLRCreateInstance != NULL) {
       DPRINT("CLRCreateInstance");
@@ -49,7 +49,7 @@ BOOL LoadAssembly(PDONUT_INSTANCE inst, PDONUT_MODULE mod, PDONUT_ASSEMBLY pa) {
       
       if(SUCCEEDED(hr)) {
         DPRINT("ICLRMetaHost::GetRuntime(\"%s\")", mod->runtime);
-        ansi2unicode(inst, mod->runtime, buf);
+        ansi2unicode(inst, mod->runtime, buf, DONUT_MAX_NAME);
         
         hr = pa->icmh->lpVtbl->GetRuntime(
           pa->icmh, buf, 
@@ -105,7 +105,7 @@ BOOL LoadAssembly(PDONUT_INSTANCE inst, PDONUT_MODULE mod, PDONUT_ASSEMBLY pa) {
       } else {
         // else create a new domain using the name
         DPRINT("Domain is %s", mod->domain);
-        ansi2unicode(inst, mod->domain, buf);
+        ansi2unicode(inst, mod->domain, buf, DONUT_MAX_NAME);
         domain = inst->api.SysAllocString(buf);
       
         DPRINT("ICorRuntimeHost::CreateDomain(\"%ws\")", buf);
@@ -167,7 +167,7 @@ BOOL RunAssembly(PDONUT_INSTANCE inst, PDONUT_MODULE mod, PDONUT_ASSEMBLY pa) {
     ULONG         cnt;
     OLECHAR       str[1]={0};
     LONG          ucnt, lcnt;
-    WCHAR         **argv, buf[DONUT_MAX_NAME+1];
+    WCHAR         **argv, buf[DONUT_MAX_ARGS+1];
     int           argc;
     
     DPRINT("Type is %s", 
@@ -199,7 +199,7 @@ BOOL RunAssembly(PDONUT_INSTANCE inst, PDONUT_MODULE mod, PDONUT_ASSEMBLY pa) {
             sav = inst->api.SafeArrayCreateVector(VT_VARIANT, 0, 1);
             // if user specified their own parameters, add to string array
             if(mod->args[0] != 0) {
-              ansi2unicode(inst, mod->args, buf);
+              ansi2unicode(inst, mod->args, buf, DONUT_MAX_ARGS);
               argv = inst->api.CommandLineToArgvW(buf, &argc);
               // create 1 dimensional array for strings[] args
               vtPsa.vt     = (VT_ARRAY | VT_BSTR);
@@ -243,12 +243,12 @@ BOOL RunAssembly(PDONUT_INSTANCE inst, PDONUT_MODULE mod, PDONUT_ASSEMBLY pa) {
         }
       } else pa->mi = NULL;
     } else {
-      ansi2unicode(inst, mod->cls, buf);
+      ansi2unicode(inst, mod->cls, buf, DONUT_MAX_NAME);
       cls = inst->api.SysAllocString(buf);
       if(cls == NULL) return FALSE;
       DPRINT("Class: SysAllocString(\"%ws\")", buf);
       
-      ansi2unicode(inst, mod->method, buf);
+      ansi2unicode(inst, mod->method, buf, DONUT_MAX_NAME);
       method = inst->api.SysAllocString(buf);
       DPRINT("Method: SysAllocString(\"%ws\")", buf);
       
@@ -261,7 +261,7 @@ BOOL RunAssembly(PDONUT_INSTANCE inst, PDONUT_MODULE mod, PDONUT_ASSEMBLY pa) {
           DPRINT("Parameters: %s", mod->args);
           
           if(mod->args[0] != 0) {
-            ansi2unicode(inst, mod->args, buf);
+            ansi2unicode(inst, mod->args, buf, DONUT_MAX_ARGS);
             argv = inst->api.CommandLineToArgvW(buf, &argc);
             DPRINT("SafeArrayCreateVector(%li argument(s))", argc);
             

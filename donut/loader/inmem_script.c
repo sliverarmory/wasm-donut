@@ -109,7 +109,7 @@ VOID RunScript(PDONUT_INSTANCE inst, PDONUT_MODULE mod) {
               
               if(hr == S_OK) {
                 DPRINT("IActiveScript::AddNamedItem(\"%s\")", inst->wscript);
-                ansi2unicode(inst, inst->wscript, buf);
+                ansi2unicode(inst, inst->wscript, buf, DONUT_MAX_NAME);
                 obj = inst->api.SysAllocString(buf);
                 hr = engine->lpVtbl->AddNamedItem(engine, (LPCOLESTR)obj, SCRIPTITEM_ISVISIBLE);
                 inst->api.SysFreeString(obj);

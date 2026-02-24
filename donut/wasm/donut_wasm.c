@@ -194,7 +194,7 @@ DONUT_WASM_EXPORT int donut_generate(const uint8_t *input,
     strncpy(c.input, "memory", DONUT_MAX_NAME - 1);
 
     if(args != NULL && args[0] != 0) {
-      strncpy(c.args, args, DONUT_MAX_NAME - 1);
+      strncpy(c.args, args, DONUT_MAX_ARGS - 1);
     }
     if(cls != NULL && cls[0] != 0) {
       strncpy(c.cls, cls, DONUT_MAX_NAME - 1);

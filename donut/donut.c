@@ -792,7 +792,7 @@ static int build_module(PDONUT_CONFIG c) {
       }
       // 
       // Copy parameters 
-      strncat(mod->args, c->args, DONUT_MAX_NAME-6);
+      strncat(mod->args, c->args, DONUT_MAX_ARGS-6);
     }    
     DPRINT("Copying data to module");
     
