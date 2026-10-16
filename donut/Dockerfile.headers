@@ -1,0 +1,31 @@
+﻿ARG LLVM_MINGW_VERSION=20260908
+
+FROM mstorsjo/llvm-mingw:${LLVM_MINGW_VERSION} AS llvm-mingw
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install --no-install-recommends -y \
+      build-essential \
+      ca-certificates \
+      file \
+      make \
+      mingw-w64 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=llvm-mingw /opt/llvm-mingw /opt/llvm-mingw
+
+ENV PATH="/opt/llvm-mingw/bin:${PATH}" \
+    CC32="/usr/bin/i686-w64-mingw32-gcc" \
+    CC64="/usr/bin/x86_64-w64-mingw32-gcc" \
+    CCARM64="/opt/llvm-mingw/bin/aarch64-w64-mingw32-clang" \
+    HOSTCC="gcc"
+
+COPY donut/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /work/donut
+
+ENTRYPOINT ["/entrypoint.sh"]

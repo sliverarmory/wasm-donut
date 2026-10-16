@@ -226,7 +226,7 @@ VOID RunPE(PDONUT_INSTANCE inst, PDONUT_MODULE mod) {
     DPRINT("NT Signature: %lx, %p", ntnew->Signature, &(ntnew->Signature));
 
     DPRINT("Updating ImageBase to final base address");
-    ntnew->OptionalHeader.ImageBase = (ULONGLONG)cs;
+    ntnew->OptionalHeader.ImageBase = (ULONG_PTR)cs;
     DPRINT("Updated ImageBase: %lluX", ntnew->OptionalHeader.ImageBase);
 
     DPRINT("Copying each section to memory: %p", cs);

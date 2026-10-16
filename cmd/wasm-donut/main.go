@@ -148,7 +148,7 @@ func main() {
 	rootCmd.Flags().StringVarP(&opts.Server, "server", "s", "", "HTTP server URL for hosting module")
 	rootCmd.Flags().StringVarP(&opts.ModName, "modname", "n", "", "module name for HTTP staging")
 	rootCmd.Flags().StringVarP(&opts.Decoy, "decoy", "j", "", "optional path of decoy module")
-	rootCmd.Flags().IntVarP(&opts.Arch, "arch", "a", wasmdonut.DonutArchX84, "target arch: 1=x86, 2=amd64, 3=x86+x64")
+	rootCmd.Flags().IntVarP(&opts.Arch, "arch", "a", wasmdonut.DonutArchX84, "target arch: 1=x86, 2=amd64, 3=x86+x64, 4=arm64")
 	rootCmd.Flags().IntVar(&opts.ArchAlt, "cpu", 0, "alias for --arch")
 	rootCmd.Flags().IntVarP(&opts.Bypass, "bypass", "b", wasmdonut.DonutBypassContinue, "bypass AMSI/WLDP/ETW: 1=None, 2=Abort, 3=Continue")
 	rootCmd.Flags().IntVarP(&opts.Headers, "headers", "k", wasmdonut.DonutHeadersOverwrite, "preserve PE headers: 1=Overwrite, 2=Keep")

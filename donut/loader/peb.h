@@ -34,6 +34,10 @@
 
 #include <windows.h>
 
+#if defined(_M_ARM64) || defined(__aarch64__)
+#define DONUT_ARM64 1
+#endif
+
 typedef void *PPS_POST_PROCESS_INIT_ROUTINE;
 
 typedef struct _LSA_UNICODE_STRING {
@@ -232,7 +236,7 @@ typedef struct _TEB
     PVOID SystemReserved1[54];
     NTSTATUS ExceptionCode;
     PVOID ActivationContextStackPointer;
-#ifdef _M_X64
+#if defined(_M_X64) || defined(DONUT_ARM64)
     UCHAR SpareBytes[24];
 #else
     UCHAR SpareBytes[36];
@@ -268,7 +272,7 @@ typedef struct _TEB
     PVOID DbgSsReserved[2];
 
     ULONG HardErrorMode;
-#ifdef _M_X64
+#if defined(_M_X64) || defined(DONUT_ARM64)
     PVOID Instrumentation[11];
 #else
     PVOID Instrumentation[9];
@@ -302,7 +306,7 @@ typedef struct _TEB
     ULONG_PTR SoftPatchPtr1;
     PVOID ThreadPoolData;
     PVOID *TlsExpansionSlots;
-#ifdef _M_X64
+#if defined(_M_X64) || defined(DONUT_ARM64)
     PVOID DeallocationBStore;
     PVOID BStoreLimit;
 #endif

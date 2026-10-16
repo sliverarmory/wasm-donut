@@ -80,7 +80,10 @@ HANDLE DonutLoader(PDONUT_INSTANCE inst) {
       if(_NtContinue != NULL && _GetThreadContext != NULL && _GetCurrentThread != NULL) {
         c.ContextFlags = CONTEXT_FULL;
         _GetThreadContext(_GetCurrentThread(), &c);
-        #ifdef _WIN64
+        #if defined(_M_ARM64) || defined(__aarch64__)
+          c.Pc = RVA2VA(DWORD64, host, inst->oep);
+          c.Sp &= -16;
+        #elif defined(_WIN64)
           c.Rip = RVA2VA(DWORD64, host, inst->oep);
           c.Rsp &= -16;
         #else

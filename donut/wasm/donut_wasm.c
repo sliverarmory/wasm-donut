@@ -98,7 +98,16 @@ static int read_file_info_mem(PDONUT_CONFIG c, const uint8_t *data, uint32_t len
       cpu = is32(fi.data);
       rva = dir[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
 
-      fi.arch = cpu ? DONUT_ARCH_X86 : DONUT_ARCH_X64;
+      if(cpu) {
+        fi.arch = DONUT_ARCH_X86;
+      } else if(is64(fi.data)) {
+        fi.arch = DONUT_ARCH_X64;
+      } else if(is_arm64(fi.data)) {
+        fi.arch = DONUT_ARCH_ARM64;
+      } else {
+        err = DONUT_ERROR_INVALID_ARCH;
+        goto cleanup;
+      }
 
       if(rva != 0) {
         if(dir[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress != 0) {

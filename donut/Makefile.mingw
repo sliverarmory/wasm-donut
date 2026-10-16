@@ -1,18 +1,49 @@
-CC32 := i686-w64-mingw32-gcc
-CC64 := x86_64-w64-mingw32-gcc
+CC32 ?= i686-w64-mingw32-gcc
+CC64 ?= x86_64-w64-mingw32-gcc
+CCARM64 ?= aarch64-w64-mingw32-gcc
+HOSTCC ?= gcc
+
+LOADER_DEFS := -DBYPASS_AMSI_B -DBYPASS_WLDP_A -DBYPASS_ETW_B
+LOADER_CFLAGS := $(LOADER_DEFS) -ffreestanding -fno-builtin -fno-toplevel-reorder -fpack-struct=8 -fPIC -Os -mno-stack-arg-probe -nostdlib -I include
+# Unfortunately we can't use atm the same exact flags as the intel ones, because of llvm (when binutils will be stable for windows on arm, we can replace this)  
+# -fno-toplevel-reorder is not recognized by llvm
+# lld fallbacks to mainCRTStartup so we have to explitly define the entrypoint using -Wl,-e,DonutLoader
+# /merge:.rdata=.text is needed because of exe2h 
+LOADER_CFLAGS_ARM64 ?= $(filter-out -fno-toplevel-reorder,$(LOADER_CFLAGS)) -Wl,-e,DonutLoader -Wl,/merge:.rdata=.text
+LOADER_SRCS := loader/loader.c loader/depack.c loader/clib.c hash.c encrypt.c
+
+.PHONY: donut exe2h loader-x86 loader-x64 loader-arm64 loaders loaders-arm64 debug clean
 
 donut: clean
 	$(info ###### RELEASE ######)
-	gcc -I include loader/exe2h/exe2h.c -oexe2h
+	$(HOSTCC) -I include loader/exe2h/exe2h.c -oexe2h
 	$(CC64) -I include loader/exe2h/exe2h.c loader/exe2h/mmap-windows.c -lshlwapi -oexe2h.exe
 	
-	$(CC32) -DBYPASS_AMSI_B -DBYPASS_WLDP_A -DBYPASS_ETW_B -fno-toplevel-reorder -fpack-struct=8 -fPIC -O0 -nostdlib loader/loader.c loader/depack.c loader/clib.c hash.c encrypt.c -I include -oloader.exe
+	$(CC32) $(LOADER_CFLAGS) $(LOADER_SRCS) -oloader.exe
 	./exe2h loader.exe
 	
-	$(CC64) -DBYPASS_AMSI_B -DBYPASS_WLDP_A -DBYPASS_ETW_B -fno-toplevel-reorder -fpack-struct=8 -fPIC -O0 -nostdlib loader/loader.c loader/depack.c loader/clib.c hash.c encrypt.c -I include -oloader.exe
+	$(CC64) $(LOADER_CFLAGS) $(LOADER_SRCS) -oloader.exe
 	./exe2h loader.exe
 	
 	$(CC64) -Wall -fpack-struct=8 -DDONUT_EXE -I include donut.c hash.c encrypt.c format.c loader/clib.c lib/aplib64.lib -odonut.exe
+
+exe2h:
+	$(HOSTCC) -I include loader/exe2h/exe2h.c -oexe2h
+
+loader-x86: exe2h
+	$(CC32) $(LOADER_CFLAGS) $(LOADER_SRCS) -oloader.exe
+	./exe2h loader.exe
+
+loader-x64: exe2h
+	$(CC64) $(LOADER_CFLAGS) $(LOADER_SRCS) -oloader.exe
+	./exe2h loader.exe
+
+loader-arm64: exe2h
+	$(CCARM64) $(LOADER_CFLAGS_ARM64) $(LOADER_SRCS) -oloader.exe
+	./exe2h loader.exe
+
+loaders: loader-x86 loader-x64 loader-arm64
+
 debug: clean
 	$(info ###### DEBUG ######)
 	$(CC32) -DCLIB -DBYPASS_AMSI_B -DBYPASS_WLDP_A -DBYPASS_ETW_B -Wno-format -fpack-struct=8 -DDEBUG -I include loader/loader.c hash.c encrypt.c loader/depack.c loader/clib.c -oloader32.exe -lole32 -lshlwapi
@@ -24,4 +55,3 @@ debug: clean
 	$(CC64) -Wall loader/inject_local.c -oinject_local64.exe
 clean:
 	rm -f exe2h exe2h.exe loader.bin instance donut.o hash.o encrypt.o format.o clib.o hash encrypt donut hash.exe encrypt.exe donut.exe lib/libdonut.a lib/libdonut.so loader.exe loader32.exe loader64.exe inject32.exe inject64.exe inject_local32.exe inject_local64.exe
-

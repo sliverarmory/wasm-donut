@@ -102,6 +102,7 @@ typedef struct _IMAGE_FILE_HEADER {
 #define IMAGE_FILE_MACHINE_SH4               0x01a6  // SH4 little-endian
 #define IMAGE_FILE_MACHINE_SH5               0x01a8  // SH5
 #define IMAGE_FILE_MACHINE_ARM               0x01c0  // ARM Little-Endian
+#define IMAGE_FILE_MACHINE_ARM64             0xAA64
 #define IMAGE_FILE_MACHINE_THUMB             0x01c2
 #define IMAGE_FILE_MACHINE_AM33              0x01d3
 #define IMAGE_FILE_MACHINE_POWERPC           0x01F0  // IBM PowerPC Little-Endian

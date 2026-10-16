@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	DonutArchX86 = 1
-	DonutArchX64 = 2
-	DonutArchX84 = 3
+	DonutArchX86   = 1
+	DonutArchX64   = 2
+	DonutArchX84   = 3
+	DonutArchARM64 = 4
 
 	DonutEntropyNone    = 1
 	DonutEntropyRandom  = 2

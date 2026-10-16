@@ -116,6 +116,7 @@ typedef struct _GUID {
 #define DONUT_ARCH_X86                   1  // x86
 #define DONUT_ARCH_X64                   2  // AMD64
 #define DONUT_ARCH_X84                   3  // x86 + AMD64
+#define DONUT_ARCH_ARM64                 4  // arm64
 
 // module type
 #define DONUT_MODULE_NET_DLL             1  // .NET DLL. Requires class and method
@@ -370,9 +371,9 @@ typedef struct _DONUT_INSTANCE {
     char        amsiScanStr[16];              // AmsiScanString
     char        etwEventWrite[16];            // EtwEventWrite
     char        etwEventUnregister[20];       // EtwEventUnregister
-    char        etwRet64[1];                  // "ret" instruction for Etw
-    char        etwRet32[4];                  // "ret 14h" instruction for Etw
-    
+    char        etwRetx64[1];                  // "ret" instruction for Etw
+    char        etwRetx86[4];                  // "ret 14h" instruction for Etw
+    char        etwRetarm64[4];                // "ret" instruction for Etw
     char        wscript[8];                   // WScript
     char        wscript_exe[12];              // wscript.exe
 

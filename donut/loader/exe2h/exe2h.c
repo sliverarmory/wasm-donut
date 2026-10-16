@@ -168,8 +168,8 @@ void bin2h(void *map, char *fname, void *bin, uint32_t len) {
       }
     }
     if(map != NULL) {
-      strcat(label, is32(map) ? "_X86" : "_X64");
-      strcat(file,  is32(map) ? "_x86" : "_x64");
+      strcat(label, is32(map) ? "_X86" : (is64(map) ? "_X64" : "_ARM64"));
+      strcat(file,  is32(map) ? "_x86" : (is64(map) ? "_x64" : "_arm64"));
     }
     strcat(file, ".h");
     
@@ -213,8 +213,8 @@ void bin2go(void* map, char* fname, void* bin, uint32_t len) {
 		}
 	}
 	if (map != NULL) {
-		strcat(label, is32(map) ? "_X86" : "_X64");
-		strcat(file, is32(map) ? "_x86" : "_x64");
+		strcat(label, is32(map) ? "_X86" : (is64(map) ? "_X64" : "_ARM64"));
+    strcat(file,  is32(map) ? "_x86" : (is64(map) ? "_x64" : "_arm64"));
 	}
 	strcat(file, ".go");
 

